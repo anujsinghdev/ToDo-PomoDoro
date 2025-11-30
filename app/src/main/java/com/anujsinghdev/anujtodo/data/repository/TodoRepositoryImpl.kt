@@ -36,4 +36,9 @@ class TodoRepositoryImpl(
     override suspend fun deleteListById(id: Long) {
         dao.deleteListById(id)
     }
+
+    override suspend fun updateFolder(folder: TodoFolder) = dao.updateFolder(folder)
+    override suspend fun updateList(list: TodoList) = dao.updateList(list)
+
+    override fun getArchivedLists(): Flow<List<TodoList>> = dao.getArchivedLists()
 }

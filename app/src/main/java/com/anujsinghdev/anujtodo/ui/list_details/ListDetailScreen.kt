@@ -26,11 +26,13 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FileCopy
 import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -45,6 +47,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
@@ -54,6 +57,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.anujsinghdev.anujtodo.domain.model.RepeatMode
 import com.anujsinghdev.anujtodo.domain.model.TodoItem
+import com.anujsinghdev.anujtodo.ui.components.AnimatedDialog // <--- Import this
 import com.anujsinghdev.anujtodo.ui.todo_list.DialogBg
 import com.anujsinghdev.anujtodo.ui.todo_list.LoginBlue
 import kotlinx.coroutines.launch
@@ -75,26 +79,18 @@ fun ListDetailScreen(
     listName: String,
     viewModel: ListDetailViewModel = hiltViewModel()
 ) {
+    // ... (Keep existing state variables) ...
     val tasks by viewModel.getTasksForList(listId).collectAsState(initial = emptyList())
-
-    // Observe Real List Name from Database
     val realListName by viewModel.getListNameFlow(listId, listName).collectAsState(initial = listName)
-
-    // Split tasks for display
     val activeTasks = remember(tasks) { tasks.filter { !it.isCompleted } }
     val completedTasks = remember(tasks) { tasks.filter { it.isCompleted } }
-
-    // States for Popups and Dialogs
     var showAddTaskSheet by remember { mutableStateOf(false) }
     var selectedTaskToEdit by remember { mutableStateOf<TodoItem?>(null) }
     var isCompletedExpanded by remember { mutableStateOf(true) }
-
-    // Menu States
     var showMenu by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
     var showSortDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
-
     val currentSortOption by viewModel.currentSortOption.collectAsState()
 
     Scaffold(
@@ -118,6 +114,7 @@ fun ListDetailScreen(
                         containerColor = SurfaceColor,
                         modifier = Modifier.width(220.dp)
                     ) {
+                        // ... (Keep existing menu items) ...
                         DropdownMenuItem(
                             text = { Text("Rename list", color = Color.White) },
                             onClick = { showMenu = false; showRenameDialog = true },
@@ -138,6 +135,17 @@ fun ListDetailScreen(
                             leadingIcon = { Icon(Icons.Outlined.FileCopy, null, tint = Color.White) },
                             enabled = listId != SMART_LIST_COMPLETED_ID
                         )
+                        DropdownMenuItem(
+                            text = { Text("Archive list", color = Color.White) },
+                            onClick = {
+                                showMenu = false
+                                viewModel.archiveList(listId)
+                                navController.popBackStack()
+                            },
+                            leadingIcon = { Icon(Icons.Outlined.Archive, null, tint = Color.White) },
+                            enabled = listId != SMART_LIST_COMPLETED_ID
+                        )
+
                         DropdownMenuItem(
                             text = { Text("Delete list", color = Color.Red) },
                             onClick = { showMenu = false; showDeleteDialog = true },
@@ -163,6 +171,7 @@ fun ListDetailScreen(
         }
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
+            // ... (Keep existing content logic: GroupedCompletedList, LazyColumn, etc.) ...
             if (listId == SMART_LIST_COMPLETED_ID) {
                 val groupedTasks by viewModel.groupedCompletedTasks.collectAsState(initial = emptyMap())
                 if (groupedTasks.isEmpty()) {
@@ -183,11 +192,10 @@ fun ListDetailScreen(
                         EmptyStateView(realListName)
                     }
                 } else {
-                    // Added rubberBandEffect() here
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
-                            .rubberBandEffect() // <--- Added Animation Modifier
+                            .rubberBandEffect()
                             .padding(horizontal = 16.dp)
                     ) {
                         items(items = activeTasks, key = { it.id }) { task ->
@@ -233,7 +241,9 @@ fun ListDetailScreen(
         }
     }
 
-    // --- DIALOGS (Rename, Sort, Delete) ---
+    // --- DIALOGS ---
+
+    // 1. Rename Dialog (Keep as is)
     if (showRenameDialog) {
         ListNameDialog(
             title = "Rename list",
@@ -246,7 +256,9 @@ fun ListDetailScreen(
         )
     }
 
+    // 2. Sort Dialog (Keep as is)
     if (showSortDialog) {
+        // ... (Keep existing sort dialog code) ...
         Dialog(onDismissRequest = { showSortDialog = false }) {
             Card(
                 colors = CardDefaults.cardColors(containerColor = DialogBg),
@@ -291,29 +303,100 @@ fun ListDetailScreen(
         }
     }
 
+    // --- REPLACED WITH ANIMATED DIALOG ---
     if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete list?", color = Color.White) },
-            text = { Text("This will delete the list \"$realListName\" and all its tasks permanently.", color = Color.Gray) },
-            containerColor = DialogBg,
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteList(listId) {
-                            navController.popBackStack()
-                        }
-                        showDeleteDialog = false
+        AnimatedDialog(
+            onDismissRequest = { showDeleteDialog = false }
+        ) { triggerDismiss ->
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier
+                    .width(320.dp)
+                    .padding(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Icon
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF3E1E1E)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = "Delete",
+                            tint = Color(0xFFFF5252),
+                            modifier = Modifier.size(32.dp)
+                        )
                     }
-                ) { Text("DELETE", color = Color.Red) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("CANCEL", color = Color.White) }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "Delete List?",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Are you sure you want to delete \"$realListName\"? This action cannot be undone.",
+                        fontSize = 14.sp,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Cancel Button
+                        Button(
+                            onClick = { triggerDismiss() },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF2C2C2C),
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(48.dp)
+                        ) {
+                            Text("Cancel", fontWeight = FontWeight.SemiBold)
+                        }
+
+                        // Delete Button
+                        Button(
+                            onClick = {
+                                triggerDismiss() // Animate out first
+                                viewModel.deleteList(listId) {
+                                    navController.popBackStack()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFFF5252),
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(48.dp)
+                        ) {
+                            Text("Delete", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
             }
-        )
+        }
     }
 
-    // --- Task Popups ---
+    // --- Task Popups (Keep as is) ---
     if (showAddTaskSheet) {
         TaskInputBottomSheet(
             title = "Add Task",
@@ -347,8 +430,7 @@ fun ListDetailScreen(
     }
 }
 
-// --- Components (GroupedList, TaskItemView, etc.) ---
-
+// ... (Keep existing Helper Composables like TaskItemView, etc.) ...
 @Composable
 fun GroupedCompletedList(
     groupedTasks: Map<String, List<TodoItem>>,
@@ -356,11 +438,10 @@ fun GroupedCompletedList(
     onFlagTask: (TodoItem) -> Unit,
     onEditTask: (TodoItem) -> Unit
 ) {
-    // Added rubberBandEffect() here
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .rubberBandEffect() // <--- Added Animation Modifier
+            .rubberBandEffect()
             .padding(horizontal = 16.dp)
     ) {
         groupedTasks.forEach { (listName, tasks) ->

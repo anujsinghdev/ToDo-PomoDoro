@@ -16,7 +16,8 @@ class Converters {
 }
 
 // 2. Add Converters and bump version to 3
-@Database(entities = [TodoItem::class, TodoFolder::class, TodoList::class], version = 3, exportSchema = false)
+
+@Database(entities = [TodoItem::class, TodoFolder::class, TodoList::class], version = 5, exportSchema = false) // <--- Version 5
 @TypeConverters(Converters::class)
 abstract class TodoDatabase : RoomDatabase() {
     abstract fun todoDao(): TodoDao

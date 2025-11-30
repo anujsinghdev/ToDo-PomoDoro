@@ -10,6 +10,9 @@ import com.anujsinghdev.anujtodo.ui.login.LoginScreen
 import com.anujsinghdev.anujtodo.ui.list_detail.ListDetailScreen
 import com.anujsinghdev.anujtodo.ui.todo_list.TodoListScreen
 import com.anujsinghdev.anujtodo.ui.util.Screen
+import com.anujsinghdev.anujtodo.ui.my_day.MyDayScreen
+import com.anujsinghdev.anujtodo.ui.pomodoro.PomodoroScreen // Import new screen
+
 
 @Composable
 fun Navigation(
@@ -28,6 +31,24 @@ fun Navigation(
             TodoListScreen(navController = navController)
         }
 
+        composable(route = Screen.TodoListScreen.route) {
+            TodoListScreen(navController = navController)
+        }
+
+        // --- NEW ---
+        composable(route = Screen.ArchiveScreen.route) {
+            com.anujsinghdev.anujtodo.ui.archive.ArchiveScreen(navController = navController)
+        }
+
+        composable(route = Screen.ArchiveScreen.route) {
+            com.anujsinghdev.anujtodo.ui.archive.ArchiveScreen(navController = navController)
+        }
+
+        // --- NEW ROUTE ---
+        composable(route = Screen.MyDayScreen.route) {
+            MyDayScreen(navController = navController)
+        }
+
         // New Route for List Details
         composable(
             route = Screen.ListDetailScreen.route,
@@ -44,6 +65,11 @@ fun Navigation(
                 listId = listId,
                 listName = listName
             )
+        }
+
+        // --- NEW POMODORO ROUTE ---
+        composable(route = Screen.PomodoroScreen.route) {
+            PomodoroScreen(navController = navController)
         }
 
 

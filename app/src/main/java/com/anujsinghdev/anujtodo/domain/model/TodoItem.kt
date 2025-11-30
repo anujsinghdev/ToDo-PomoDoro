@@ -15,8 +15,8 @@ data class TodoItem(
     val dueDate: Long? = null,
     val createdAt: Long = System.currentTimeMillis(),
 
-    // --- NEW FIELDS ---
-    val listId: Long? = null, // Links this task to a specific list
+    // --- New Fields for your recent features ---
+    val listId: Long? = null,
     val repeatMode: RepeatMode = RepeatMode.NONE
 )
 

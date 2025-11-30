@@ -116,4 +116,12 @@ class ListDetailViewModel @Inject constructor(
     fun toggleFlag(todo: TodoItem) = viewModelScope.launch { repository.updateTodo(todo.copy(isFlagged = !todo.isFlagged)) }
     fun updateTask(todo: TodoItem) = viewModelScope.launch { repository.updateTodo(todo) }
     fun updateSortOption(option: SortOption) { _currentSortOption.value = option }
+
+    fun archiveList(listId: Long) {
+        viewModelScope.launch {
+            // Fetch the current list first to keep other properties intact
+            val currentList = repository.getListById(listId).first()
+            repository.updateList(currentList.copy(isArchived = true))
+        }
+    }
 }

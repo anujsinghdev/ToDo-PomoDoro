@@ -1,8 +1,8 @@
 package com.anujsinghdev.anujtodo.ui.todo_list
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CenterFocusStrong
@@ -21,7 +21,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.anujsinghdev.anujtodo.ui.components.AnujButton
 import com.anujsinghdev.anujtodo.ui.components.BottomNavItem
 import com.anujsinghdev.anujtodo.ui.components.GlassBottomNavigation
 import com.anujsinghdev.anujtodo.ui.util.Screen
@@ -32,12 +31,16 @@ fun TodoListScreen(
     viewModel: TodoListViewModel = hiltViewModel()
 ) {
     val backgroundColor = Color.Black
-    val scrollState = rememberScrollState()
+    // Removed rememberScrollState() because LazyColumn handles its own scrolling
 
     // Observe Search State
     val searchQuery by viewModel.searchQuery.collectAsState()
     val isSearchActive by viewModel.isSearchActive.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState(initial = TodoListSearchResults())
+
+    // --- Sort Mode State (From Step 4) ---
+    // Ensure you have added 'val isSortMode = mutableStateOf(false)' to your TodoListViewModel
+    val isSortMode by viewModel.isSortMode
 
     // --- State for Dialogs ---
     var showCreateGroupDialog by remember { mutableStateOf(false) }
@@ -57,13 +60,13 @@ fun TodoListScreen(
             // Hide Bottom Bar when searching
             if (!isSearchActive) {
                 Column {
-                    // 1. Your existing "New List/Folder" Action Bar
+                    // 1. Action Bar
                     BottomBarAction(
                         onNewListClick = { showCreateListDialog = true },
                         onNewGroupClick = { showCreateGroupDialog = true }
                     )
 
-                    // 2. The New Glassmorphic Navigation
+                    // 2. Glassmorphic Navigation
                     GlassBottomNavigation(
                         items = navItems,
                         selectedItem = selectedNavIndex,
@@ -72,11 +75,25 @@ fun TodoListScreen(
                             // Handle Navigation Here
                             when(index) {
                                 0 -> { /* Already Home */ }
-                                1 -> { /* Navigate to Focus Screen */ }
+                                1 -> {
+                                    navController.navigate(Screen.PomodoroScreen.route)
+                                }
                                 2 -> { /* Navigate to Stats Screen */ }
                             }
                         }
                     )
+                }
+            }
+        },
+        // ADDED: Done Sorting Button
+        floatingActionButton = {
+            if (isSortMode) {
+                ExtendedFloatingActionButton(
+                    onClick = { viewModel.isSortMode.value = false },
+                    containerColor = LoginBlue,
+                    contentColor = Color.White
+                ) {
+                    Text("Done Sorting")
                 }
             }
         }
@@ -86,7 +103,6 @@ fun TodoListScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 16.dp)
-                .then(if(!isSearchActive) Modifier.verticalScroll(scrollState) else Modifier)
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -114,53 +130,81 @@ fun TodoListScreen(
                     }
                 )
             } else {
-                // --- NORMAL DASHBOARD VIEW ---
-
-                // Menu Items Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                // --- NORMAL DASHBOARD VIEW (UPDATED) ---
+                // Switched to LazyColumn for performance and sorting support
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        VerticalMenuItem(Icons.Outlined.WbSunny, "My Day", Color.Gray) {}
+                    // 1. Menu Items (My Day, Completed, Archive)
+                    item {
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(modifier = Modifier.weight(1f)) {
+                                    VerticalMenuItem(
+                                        Icons.Outlined.WbSunny,
+                                        "My Day",
+                                        Color.Blue,
+                                        onClick = { navController.navigate(Screen.MyDayScreen.route) }) {}
+                                }
+                                VerticalDivider(modifier = Modifier.height(40.dp), color = Zinc700, thickness = 1.dp)
+                                Box(modifier = Modifier.weight(1f)) {
+                                    VerticalMenuItem(
+                                        Icons.Outlined.CheckCircle, "Completed", Color.Green,
+                                        onClick = { navController.navigate(Screen.ListDetailScreen.createRoute(-2L, "Completed")) }
+                                    ) {}
+                                }
+                                VerticalDivider(modifier = Modifier.height(40.dp), color = Zinc700, thickness = 1.dp)
+                                Box(modifier = Modifier.weight(1f)) {
+                                    VerticalMenuItem(Icons.Outlined.Archive, "Archive", Color(0xFFF06292),
+                                        onClick = { navController.navigate(Screen.ArchiveScreen.route) }) {}
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(24.dp))
+                            HorizontalDivider(color = Color.DarkGray, thickness = 0.5.dp)
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
                     }
-                    VerticalDivider(modifier = Modifier.height(40.dp), color = Zinc700, thickness = 1.dp)
-                    Box(modifier = Modifier.weight(1f)) {
-                        VerticalMenuItem(
-                            Icons.Outlined.CheckCircle, "Completed", Color.Gray,
-                            onClick = { navController.navigate(Screen.ListDetailScreen.createRoute(-2L, "Completed")) }
+
+                    // 2. FOLDERS (Moved ABOVE Lists)
+                    itemsIndexed(viewModel.folders) { index, folder ->
+                        FolderView(
+                            folder = folder,
+                            onToggleExpand = { viewModel.toggleFolderExpanded(folder.id) },
+                            onAddListToFolder = { name -> viewModel.addListToFolder(folder.id, name) },
+                            onListClick = { list -> navController.navigate(Screen.ListDetailScreen.createRoute(list.id, list.name)) },
+                            // --- Sort Params ---
+                            onLongClick = { viewModel.isSortMode.value = true },
+                            isSortMode = isSortMode,
+                            onMoveUp = { viewModel.moveFolder(index, index - 1) },
+                            onMoveDown = { viewModel.moveFolder(index, index + 1) }
                         )
                     }
-                    VerticalDivider(modifier = Modifier.height(40.dp), color = Zinc700, thickness = 1.dp)
-                    Box(modifier = Modifier.weight(1f)) {
-                        VerticalMenuItem(Icons.Outlined.Archive, "Archive", Color(0xFFF06292)) {}
+
+                    // 3. ROOT LISTS (Moved BELOW Folders)
+                    itemsIndexed(viewModel.rootLists) { index, list ->
+                        UserListItem(
+                            list = list,
+                            onClick = {
+                                // Disable navigation when sorting to prevent accidental clicks
+                                if (!isSortMode) {
+                                    navController.navigate(Screen.ListDetailScreen.createRoute(list.id, list.name))
+                                }
+                            },
+                            // --- Sort Params ---
+                            onLongClick = { viewModel.isSortMode.value = true },
+                            isSortMode = isSortMode,
+                            onMoveUp = { viewModel.moveRootList(index, index - 1) },
+                            onMoveDown = { viewModel.moveRootList(index, index + 1) }
+                        )
                     }
+
+                    // Spacer at the bottom
+                    item { Spacer(modifier = Modifier.height(120.dp)) }
                 }
-
-                Spacer(modifier = Modifier.height(24.dp))
-                HorizontalDivider(color = Color.DarkGray, thickness = 0.5.dp)
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // User Lists
-                viewModel.rootLists.forEach { list ->
-                    UserListItem(
-                        list = list,
-                        onClick = { navController.navigate(Screen.ListDetailScreen.createRoute(list.id, list.name)) }
-                    )
-                }
-
-                // Folders
-                viewModel.folders.forEach { folder ->
-                    FolderView(
-                        folder = folder,
-                        onToggleExpand = { viewModel.toggleFolderExpanded(folder.id) },
-                        onAddListToFolder = { name -> viewModel.addListToFolder(folder.id, name) },
-                        onListClick = { list -> navController.navigate(Screen.ListDetailScreen.createRoute(list.id, list.name)) }
-                    )
-                }
-
-                // Add extra spacer at bottom so content isn't hidden behind the new taller bottom bar
-                Spacer(modifier = Modifier.height(120.dp))
             }
         }
     }

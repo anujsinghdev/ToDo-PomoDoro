@@ -8,7 +8,8 @@ import androidx.room.PrimaryKey
 data class TodoFolder(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-    val name: String
+    val name: String,
+    val sortOrder: Int = 0
 )
 
 @Entity(
@@ -26,5 +27,7 @@ data class TodoList(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val name: String,
-    val folderId: Long? = null // Null if it's a root list (not in a folder)
+    val folderId: Long? = null,
+    val sortOrder: Int = 0,
+    val isArchived: Boolean = false // <--- New Field
 )

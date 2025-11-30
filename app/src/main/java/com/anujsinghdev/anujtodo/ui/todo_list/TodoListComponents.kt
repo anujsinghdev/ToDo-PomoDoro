@@ -3,9 +3,11 @@ package com.anujsinghdev.anujtodo.ui.todo_list
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,15 +18,14 @@ import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CreateNewFolder
-import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
@@ -41,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.anujsinghdev.anujtodo.domain.model.TodoItem
 import com.anujsinghdev.anujtodo.domain.model.TodoList
+import com.anujsinghdev.anujtodo.ui.components.MacosFolderIcon
 
 // --- Colors ---
 val Zinc200 = Color(0xFFE4E4E7)
@@ -148,10 +150,6 @@ fun GlowSearchBox(
         SolidColor(Color.DarkGray)
     }
 
-    // Apply rotation only to the brush context if we could,
-    // but here we just rotate the brush logic or use the simple border
-    // For simplicity, we use the animated brush when active.
-
     BasicTextField(
         value = query,
         onValueChange = onQueryChange,
@@ -251,10 +249,16 @@ fun SearchResultsList(
     }
 }
 
-// --- Reused Components from previous steps ---
+// --- Reused Components ---
 
 @Composable
-fun VerticalMenuItem(icon: ImageVector, title: String, iconColor: Color, onClick: () -> Unit) {
+fun VerticalMenuItem(
+    icon: ImageVector,
+    title: String,
+    iconColor: Color,
+    onClick: () -> Unit,
+    function: () -> Unit
+) {
     Column(
         modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -265,15 +269,35 @@ fun VerticalMenuItem(icon: ImageVector, title: String, iconColor: Color, onClick
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun UserListItem(list: UiTaskList, isNested: Boolean = false, onClick: () -> Unit = {}) {
+fun UserListItem(
+    list: UiTaskList,
+    isNested: Boolean = false,
+    onClick: () -> Unit = {},
+    onLongClick: () -> Unit = {},
+    isSortMode: Boolean = false,
+    onMoveUp: () -> Unit = {},
+    onMoveDown: () -> Unit = {}
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(vertical = 12.dp, horizontal = if (isNested) 16.dp else 0.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // --- Sorting Arrows ---
+        if (isSortMode) {
+            Column(modifier = Modifier.padding(end = 8.dp)) {
+                Icon(Icons.Default.KeyboardArrowUp, null, tint = LoginBlue, modifier = Modifier.size(24.dp).clickable { onMoveUp() })
+                Icon(Icons.Default.KeyboardArrowDown, null, tint = LoginBlue, modifier = Modifier.size(24.dp).clickable { onMoveDown() })
+            }
+        }
+
         Icon(
             imageVector = Icons.AutoMirrored.Outlined.List,
             contentDescription = "List",
@@ -294,23 +318,44 @@ fun UserListItem(list: UiTaskList, isNested: Boolean = false, onClick: () -> Uni
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FolderView(
     folder: UiFolder,
     onToggleExpand: () -> Unit,
     onAddListToFolder: (String) -> Unit,
-    onListClick: (UiTaskList) -> Unit
+    onListClick: (UiTaskList) -> Unit,
+    onLongClick: () -> Unit = {},
+    isSortMode: Boolean = false,
+    onMoveUp: () -> Unit = {},
+    onMoveDown: () -> Unit = {}
 ) {
     var showAddListDialog by remember { mutableStateOf(false) }
 
     Column {
         Row(
-            modifier = Modifier.fillMaxWidth().clickable { onToggleExpand() }.padding(vertical = 12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = onToggleExpand,
+                    onLongClick = onLongClick
+                )
+                .padding(vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(imageVector = Icons.Outlined.Folder, contentDescription = "Folder", tint = Color.Gray, modifier = Modifier.size(26.dp))
+            // --- Sorting Arrows ---
+            if (isSortMode) {
+                Column(modifier = Modifier.padding(end = 8.dp)) {
+                    Icon(Icons.Default.KeyboardArrowUp, null, tint = LoginBlue, modifier = Modifier.size(24.dp).clickable { onMoveUp() })
+                    Icon(Icons.Default.KeyboardArrowDown, null, tint = LoginBlue, modifier = Modifier.size(24.dp).clickable { onMoveDown() })
+                }
+            }
+
+            // --- REPLACED Icon WITH MacosFolderIcon ---
+            MacosFolderIcon(modifier = Modifier.size(28.dp))
+
             Spacer(modifier = Modifier.width(20.dp))
-            Text(text = folder.name, fontSize = 18.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+            Text(text = folder.name, fontSize = 18.sp, fontWeight = FontWeight.Medium, color = Color.White, modifier = Modifier.weight(1f)) // Added color explicitly
             if (folder.lists.isNotEmpty()) {
                 Text(text = folder.lists.size.toString(), color = Color.Gray, fontSize = 14.sp)
                 Spacer(modifier = Modifier.width(8.dp))
