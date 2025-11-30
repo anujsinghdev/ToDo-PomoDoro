@@ -12,16 +12,11 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -30,8 +25,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -95,7 +88,7 @@ fun LoginScreen(
             )
 
             Text(
-                text = "Sign in to continue",
+                text = "Enter Your Name to continue",
                 fontSize = 16.sp,
                 color = Color.Gray,
                 modifier = Modifier.padding(top = 8.dp)
@@ -109,28 +102,6 @@ fun LoginScreen(
                 onTextChange = { viewModel.name.value = it },
                 label = "Name",
                 icon = Icons.Default.Person
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // -- 2. Email Field --
-            AnimatedInput(
-                text = viewModel.email.value,
-                onTextChange = { viewModel.email.value = it },
-                label = "Email Address",
-                icon = Icons.Default.Email,
-                keyboardType = KeyboardType.Email
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // -- 3. Password Field --
-            AnimatedInput(
-                text = viewModel.password.value,
-                onTextChange = { viewModel.password.value = it },
-                label = "Password",
-                icon = Icons.Default.Lock,
-                isPassword = true
             )
 
             Spacer(modifier = Modifier.height(50.dp))
@@ -156,11 +127,9 @@ fun AnimatedInput(
     onTextChange: (String) -> Unit,
     label: String,
     icon: ImageVector,
-    isPassword: Boolean = false,
     keyboardType: KeyboardType = KeyboardType.Text
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    var isPasswordVisible by remember { mutableStateOf(false) }
 
     // Animation States
     val isLabelUp = isFocused || text.isNotEmpty()
@@ -209,7 +178,6 @@ fun AnimatedInput(
                 fontWeight = FontWeight.Medium
             ),
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-            visualTransformation = if (isPassword && !isPasswordVisible) PasswordVisualTransformation() else VisualTransformation.None,
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
@@ -249,17 +217,6 @@ fun AnimatedInput(
                             Box(modifier = Modifier.padding(top = 8.dp)) {
                                 innerTextField()
                             }
-                        }
-                    }
-
-                    // Trailing Icon for Password
-                    if (isPassword) {
-                        IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                            Icon(
-                                imageVector = if (isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = "Toggle Password",
-                                tint = Color.Gray
-                            )
                         }
                     }
                 }

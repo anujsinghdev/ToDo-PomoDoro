@@ -9,6 +9,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -61,7 +63,7 @@ val Transparent = Color.Transparent
 @Composable
 fun ProfileHeader(
     name: String,
-    email: String,
+    email: String, // Kept for compatibility, unused in UI
     query: String,
     onQueryChange: (String) -> Unit,
     isSearchActive: Boolean,
@@ -77,26 +79,16 @@ fun ProfileHeader(
             enter = fadeIn() + expandHorizontally(),
             exit = fadeOut() + shrinkHorizontally()
         ) {
-            Column(modifier = Modifier.padding(end = 16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = name,
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1
-                    )
-                    Icon(
-                        imageVector = Icons.Default.KeyboardArrowDown,
-                        contentDescription = null,
-                        tint = Color.Gray,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+            // UPDATED: Only shows "Hi, Name"
+            Row(
+                modifier = Modifier.padding(end = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = email,
-                    color = Color.Gray,
-                    fontSize = 14.sp,
+                    text = "Hi, $name",
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
                     maxLines = 1
                 )
             }

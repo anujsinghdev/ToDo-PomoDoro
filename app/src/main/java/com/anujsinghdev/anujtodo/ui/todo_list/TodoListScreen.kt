@@ -115,9 +115,11 @@ fun TodoListScreen(
         ) {
             Spacer(modifier = Modifier.height(0.dp))
 
+            // Modified ProfileHeader to remove email and use "Hi, Name"
             ProfileHeader(
                 name = viewModel.userName.value,
-                email = viewModel.userEmail.value,
+                // Pass empty string or remove parameter if you updated ProfileHeader signature
+                email = "",
                 query = searchQuery,
                 onQueryChange = viewModel::onSearchQueryChange,
                 isSearchActive = isSearchActive,
@@ -152,7 +154,7 @@ fun TodoListScreen(
                                     VerticalMenuItem(
                                         Icons.Outlined.WbSunny,
                                         "My Day",
-                                        SkyBlue,  // ✅ Changed from Color.Blue to SkyBlue
+                                        SkyBlue,
                                         onClick = { navController.navigate(Screen.MyDayScreen.route) }) {}
                                 }
                                 VerticalDivider(modifier = Modifier.height(40.dp), color = Zinc700, thickness = 1.dp)
@@ -169,9 +171,7 @@ fun TodoListScreen(
                                 }
                             }
 
-                            //Spacer(modifier = Modifier.height(24.dp))
                             HorizontalDivider(color = Color.DarkGray, thickness = 0.5.dp)
-//                            Spacer(modifier = Modifier.height(16.dp))
                         }
                     }
 
@@ -211,7 +211,7 @@ fun TodoListScreen(
         }
     }
 
-    // Modern Animated Dialogs
+    // Modern Animated Dialogs (Group, List, Folder Add)
     if (showCreateGroupDialog) {
         ModernCreateDialog(
             title = "Create Group",
@@ -388,9 +388,8 @@ fun ModernCreateDialog(
                     )
                 )
 
-               // Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
-                // Modern Buttons Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)

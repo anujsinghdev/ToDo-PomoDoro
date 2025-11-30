@@ -14,16 +14,16 @@ class LoginViewModel @Inject constructor(
 ) : ViewModel() {
 
     var name = mutableStateOf("")
-    var email = mutableStateOf("")
-    var password = mutableStateOf("")
 
     var loginSuccess = mutableStateOf(false)
 
     fun onLoginClick() {
         viewModelScope.launch {
-            if (name.value.isNotBlank() && email.value.isNotBlank() && password.value.isNotBlank()) {
-                // Now saving Email too
-                repository.saveUser(name.value, email.value, password.value)
+            if (name.value.isNotBlank()) {
+                // Only saving Name now.
+                // Ensure your repository.saveUser function is updated to handle just the name,
+                // or pass default/empty strings for email/password if the signature hasn't changed yet.
+                repository.saveUser(name.value, "", "")
                 loginSuccess.value = true
             }
         }
