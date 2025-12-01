@@ -4,7 +4,17 @@
 AnujTodo is a modern, feature-rich productivity application built entirely with **Kotlin** and **Jetpack Compose**. It goes beyond simple task management by integrating a focus timer (Pomodoro), smart organization (Folders/Lists), and a stunning UI featuring Glassmorphism, Mesh Gradients, and fluid animations.
 
 
-## ✨ Key Features
+## ✨ Key Features & 📸 Screenshots
+<img width="1080" height="2400" alt="Screenshot_20251130_151922" src="https://github.com/user-attachments/assets/9a58bb67-2fbd-48fa-bc2d-705580cf3f6f" />
+<img width="1080" height="2400" alt="Screenshot_20251201_152152" src="https://github.com/user-attachments/assets/7af9f064-9ac8-4e37-a375-48ba07730bb7" />
+<img width="1080" height="2400" alt="Screenshot_20251130_152113" src="https://github.com/user-attachments/assets/9bcdc92a-b18e-4be3-8540-15e8ac91abd8" />
+<img width="1080" height="2400" alt="Screenshot_20251130_152124" src="https://github.com/user-attachments/assets/607c1273-d014-4cc9-a566-42d6418e607a" />
+<img width="1080" height="2400" alt="Screenshot_20251130_152132" src="https://github.com/user-attachments/assets/f01acaf3-2527-4189-92c9-48926a2b4f57" />
+<img width="1080" height="2400" alt="Screenshot_20251130_152203" src="https://github.com/user-attachments/assets/83d35d60-2e6b-4d25-845c-6582f43f1f4e" />
+<img width="1080" height="2400" alt="Screenshot_20251201_152542" src="https://github.com/user-attachments/assets/60e7c8d2-5d77-4b5c-a077-8e0cbfd3f003" />
+<img width="1080" height="2400" alt="Screenshot_20251201_153122" src="https://github.com/user-attachments/assets/3f58897b-7f76-41e2-88ed-e6795f86f6ab" />
+
+
 
 ### 🚀 Productivity & Task Management
 
@@ -65,13 +75,6 @@ com.anujsinghdev.anujtodo
     └── theme         # App Theme & Color Palette
 ```
 
-## 📸 Screenshots
-
-| Login Screen | Dashboard | Pomodoro Timer |
-|:---:|:---:|:---:|
-|  |  |  |
-
-*(Upload screenshots to your repo and link them here)*
 
 ## 📥 Installation
 
