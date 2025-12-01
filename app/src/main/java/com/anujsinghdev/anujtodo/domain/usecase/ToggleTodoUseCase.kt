@@ -7,6 +7,14 @@ class ToggleTodoUseCase(
     private val repository: TodoRepository
 ) {
     suspend operator fun invoke(todo: TodoItem) {
-        repository.updateTodo(todo.copy(isCompleted = !todo.isCompleted))
+        val newCompletedState = !todo.isCompleted
+        val completedTime = if (newCompletedState) System.currentTimeMillis() else null
+
+        repository.updateTodo(
+            todo.copy(
+                isCompleted = newCompletedState,
+                completedAt = completedTime
+            )
+        )
     }
 }

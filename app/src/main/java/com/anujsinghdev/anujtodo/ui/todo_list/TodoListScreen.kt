@@ -1,3 +1,9 @@
+/*
+{
+type: uploaded file
+fileName: anujtodo/ui/todo_list/TodoListScreen.kt
+}
+*/
 package com.anujsinghdev.anujtodo.ui.todo_list
 
 import androidx.compose.animation.*
@@ -115,11 +121,9 @@ fun TodoListScreen(
         ) {
             Spacer(modifier = Modifier.height(0.dp))
 
-            // Modified ProfileHeader to remove email and use "Hi, Name"
+            // Modified ProfileHeader call
             ProfileHeader(
                 name = viewModel.userName.value,
-                // Pass empty string or remove parameter if you updated ProfileHeader signature
-                email = "",
                 query = searchQuery,
                 onQueryChange = viewModel::onSearchQueryChange,
                 isSearchActive = isSearchActive,
@@ -259,7 +263,7 @@ fun TodoListScreen(
 }
 
 // ==================== MODERN CREATE DIALOG ====================
-
+// ... (Rest of the file remains unchanged) ...
 @Composable
 fun ModernCreateDialog(
     title: String,

@@ -5,7 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -50,7 +49,7 @@ val TextGrey = Color(0xFF888888)
 val BackgroundBlack = Color(0xFF0A0A0A)
 
 enum class TimePeriod {
-    WEEKLY, MONTHLY, YEARLY, LIFETIME // <--- Added LIFETIME
+    WEEKLY, MONTHLY, YEARLY, LIFETIME
 }
 
 @Composable
@@ -62,10 +61,9 @@ fun StatsScreen(
     val weeklyData by viewModel.weeklyData.collectAsState()
     val monthlyData by viewModel.monthlyData.collectAsState()
     val yearlyData by viewModel.yearlyData.collectAsState()
-    val lifetimeData by viewModel.lifetimeData.collectAsState() // <--- Collect Lifetime Data
+    val lifetimeData by viewModel.lifetimeData.collectAsState()
 
     var selectedPeriod by remember { mutableStateOf(TimePeriod.WEEKLY) }
-
     val showConfetti by viewModel.showCelebration.collectAsState()
 
     LaunchedEffect(showConfetti) {
@@ -107,7 +105,7 @@ fun StatsScreen(
                     .padding(bottom = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
+                // REMOVED SPACER HERE to remove top padding
 
                 // Header
                 Row(
@@ -126,16 +124,32 @@ fun StatsScreen(
 
                 EnhancedLevelCard(stats)
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    ModernStatCard(Modifier.weight(1f), "Hours", String.format(Locale.getDefault(), "%.1f", stats.totalHours), Icons.Default.Schedule, NeonBlue)
-                    ModernStatCard(Modifier.weight(1f), "Tasks", stats.totalTasksCompleted.toString(), Icons.Default.CheckCircle, NeonPurple)
-                    ModernStatCard(Modifier.weight(1f), "Streak", "${stats.currentStreak}d", Icons.Default.TrendingUp, NeonGreen)
-                }
+                // --- NEW STATS LAYOUT ---
+                // Section 1: Focus Time
+                DualStatCard(
+                    title = "Focus Time",
+                    icon = Icons.Default.Schedule,
+                    accentColor = NeonBlue,
+                    label1 = "Today's Focus Time",
+                    value1 = "${stats.todayFocusMinutes}m",
+                    label2 = "Total Focus Time",
+                    value2 = "${(stats.totalFocusMinutes / 60.0).let { "%.1f".format(it) }}h"
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Section 2: Tasks
+                DualStatCard(
+                    title = "Tasks",
+                    icon = Icons.Default.CheckCircle,
+                    accentColor = NeonPurple,
+                    label1 = "Today's Tasks",
+                    value1 = "${stats.todayTasksCompleted}",
+                    label2 = "Total Tasks Completed",
+                    value2 = "${stats.totalTasksCompleted}"
+                )
 
                 Spacer(modifier = Modifier.height(32.dp))
 
@@ -176,11 +190,6 @@ fun StatsScreen(
                         )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Pass the actual chart data to calculate accurate averages
-                InsightsCard(stats, selectedPeriod, currentChartData)
             }
 
             if (showConfetti) {
@@ -192,7 +201,73 @@ fun StatsScreen(
     }
 }
 
-// ... (EnhancedLevelCard and ModernStatCard remain same as previous step) ...
+// --- NEW COMPONENT FOR 2-SECTION LAYOUT ---
+@Composable
+fun DualStatCard(
+    title: String,
+    icon: ImageVector,
+    accentColor: Color,
+    label1: String,
+    value1: String,
+    label2: String,
+    value2: String
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = CardDark),
+        shape = RoundedCornerShape(24.dp),
+        modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(24.dp))
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            // Header with Icon
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(accentColor.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, null, tint = accentColor, modifier = Modifier.size(20.dp))
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(title, color = TextWhite, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Stats Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Stat 1 (Today)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(label1, color = TextGrey, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(value1, color = TextWhite, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                }
+
+                // Vertical Divider
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .height(40.dp)
+                        .background(Color.White.copy(alpha = 0.1f))
+                        .align(Alignment.CenterVertically)
+                )
+
+                Spacer(modifier = Modifier.width(24.dp))
+
+                // Stat 2 (Total)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(label2, color = TextGrey, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(value2, color = TextWhite, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun EnhancedLevelCard(stats: UserStats) {
@@ -234,20 +309,6 @@ fun EnhancedLevelCard(stats: UserStats) {
 }
 
 @Composable
-fun ModernStatCard(modifier: Modifier = Modifier, title: String, value: String, icon: ImageVector, color: Color) {
-    Card(colors = CardDefaults.cardColors(containerColor = CardDark), shape = RoundedCornerShape(20.dp), modifier = modifier.shadow(6.dp, RoundedCornerShape(20.dp))) {
-        Column(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(modifier = Modifier.size(48.dp).clip(CircleShape).background(color.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
-                Icon(icon, null, tint = color, modifier = Modifier.size(24.dp))
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(value, color = TextWhite, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text(title, color = TextGrey, fontSize = 12.sp)
-        }
-    }
-}
-
-@Composable
 fun TimePeriodSelector(
     selectedPeriod: TimePeriod,
     onPeriodSelected: (TimePeriod) -> Unit
@@ -279,7 +340,7 @@ fun TimePeriodSelector(
                             TimePeriod.WEEKLY -> "Week"
                             TimePeriod.MONTHLY -> "Month"
                             TimePeriod.YEARLY -> "Year"
-                            TimePeriod.LIFETIME -> "All" // <--- Short text for UI
+                            TimePeriod.LIFETIME -> "All"
                         },
                         color = if (isSelected) Color.Black else TextGrey,
                         fontSize = 12.sp,
@@ -292,7 +353,6 @@ fun TimePeriodSelector(
     }
 }
 
-// ... (NeonBarChart remains same) ...
 @Composable
 fun NeonBarChart(data: List<ChartDataPoint>, modifier: Modifier = Modifier) {
     if (data.isEmpty()) { Box(modifier = modifier, contentAlignment = Alignment.Center) { Text("No data available", color = TextGrey) }; return }
@@ -310,47 +370,5 @@ fun NeonBarChart(data: List<ChartDataPoint>, modifier: Modifier = Modifier) {
                 Text(text = point.label, color = if (point.isToday) NeonBlue else TextGrey, fontSize = 11.sp, fontWeight = if (point.isToday) FontWeight.Bold else FontWeight.Normal)
             }
         }
-    }
-}
-
-@Composable
-fun InsightsCard(stats: UserStats, period: TimePeriod, currentChartData: List<ChartDataPoint>) {
-    // Correctly calculate average based on the chart data shown
-    val totalMinutesInPeriod = currentChartData.sumOf { it.value }
-    val averageLabel = if(period == TimePeriod.LIFETIME) "Total Hours" else "Average per day"
-
-    val averageValue = when(period) {
-        TimePeriod.WEEKLY -> String.format("%.1f hrs", totalMinutesInPeriod / 60f / 7f)
-        TimePeriod.MONTHLY -> String.format("%.1f hrs", totalMinutesInPeriod / 60f / 30f)
-        TimePeriod.YEARLY -> String.format("%.1f hrs", totalMinutesInPeriod / 60f / 365f)
-        TimePeriod.LIFETIME -> String.format("%.1f hrs", totalMinutesInPeriod / 60f) // Just show total hours
-    }
-
-    Card(
-        colors = CardDefaults.cardColors(containerColor = CardDark),
-        shape = RoundedCornerShape(24.dp),
-        modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(24.dp))
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.TrendingUp, null, tint = NeonGreen, modifier = Modifier.size(24.dp))
-                Spacer(modifier = Modifier.width(12.dp))
-                Text("Insights", color = TextWhite, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            InsightRow(label = averageLabel, value = averageValue)
-            Spacer(modifier = Modifier.height(12.dp))
-            InsightRow(label = "Current streak", value = "${stats.currentStreak} days")
-            Spacer(modifier = Modifier.height(12.dp))
-            InsightRow(label = "Best streak", value = "${stats.bestStreak} days")
-        }
-    }
-}
-
-@Composable
-fun InsightRow(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = TextGrey, fontSize = 14.sp)
-        Text(value, color = TextWhite, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
     }
 }

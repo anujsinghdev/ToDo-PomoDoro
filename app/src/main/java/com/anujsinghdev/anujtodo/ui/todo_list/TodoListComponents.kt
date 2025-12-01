@@ -1,3 +1,9 @@
+/*
+{
+type: uploaded file
+fileName: anujtodo/ui/todo_list/TodoListComponents.kt
+}
+*/
 package com.anujsinghdev.anujtodo.ui.todo_list
 
 import androidx.activity.compose.BackHandler
@@ -49,7 +55,7 @@ val Zinc200 = Color(0xFFE4E4E7)
 val Zinc700 = Color(0xFF3F3F46)
 val Blue400 = Color(0xFF60A5FA)
 val DialogBg = Color(0xFF1E1E1E)
-val LoginBlue = Color(0xFF00A9E0)
+val LoginBlue = Color(0xFF00A9E0) // Defined here, reused in header
 
 // --- Search Bar Colors ---
 val Red200 = Color(0xFFFECACA)
@@ -61,7 +67,7 @@ val Transparent = Color.Transparent
 @Composable
 fun ProfileHeader(
     name: String,
-    email: String,
+    // Removed email parameter
     query: String,
     onQueryChange: (String) -> Unit,
     isSearchActive: Boolean,
@@ -78,26 +84,23 @@ fun ProfileHeader(
             exit = fadeOut() + shrinkHorizontally()
         ) {
             Column(modifier = Modifier.padding(end = 16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = name,
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1
-                    )
-                    Icon(
-                        imageVector = Icons.Default.KeyboardArrowDown,
-                        contentDescription = null,
-                        tint = Color.Gray,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                // Line 1: "Hello,"
                 Text(
-                    text = email,
-                    color = Color.Gray,
-                    fontSize = 14.sp,
-                    maxLines = 1
+                    text = "Hello,",
+                    color = LoginBlue, // Matching blue color
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Normal,
+                    letterSpacing = 0.5.sp
+                )
+                // Line 2: User Name
+                Text(
+                    text = name,
+                    color = LoginBlue, // Matching blue color
+                    fontSize = 32.sp,  // Increased size for prominence
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    letterSpacing = 0.5.sp,
+                    lineHeight = 34.sp // Tighter line height to keep them close
                 )
             }
         }
@@ -114,6 +117,7 @@ fun ProfileHeader(
     }
 }
 
+// ... (Rest of the file remains unchanged: GlowSearchBox, SearchResultsList, etc.) ...
 @Composable
 fun GlowSearchBox(
     query: String,

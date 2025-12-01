@@ -83,7 +83,7 @@ interface TodoDao {
     @Query("SELECT SUM(durationMinutes) FROM focus_sessions")
     fun getTotalFocusMinutes(): Flow<Int?>
 
-    // [NEW] Get count of completed tasks for stats
+    // Get count of completed tasks for stats
     @Query("SELECT COUNT(*) FROM todo_items WHERE isCompleted = 1")
     fun getCompletedTaskCount(): Flow<Int>
 }

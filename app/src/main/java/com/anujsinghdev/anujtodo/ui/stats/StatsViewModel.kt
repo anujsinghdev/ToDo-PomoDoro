@@ -3,6 +3,7 @@ package com.anujsinghdev.anujtodo.ui.stats
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.anujsinghdev.anujtodo.domain.model.FocusSession
+import com.anujsinghdev.anujtodo.domain.model.TodoItem
 import com.anujsinghdev.anujtodo.domain.repository.TodoRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -13,11 +14,13 @@ data class UserStats(
     val level: Int,
     val title: String,
     val progress: Float,
-    val totalHours: Float,
     val nextLevelHours: Int,
-    val totalTasksCompleted: Int,
-    val currentStreak: Int,
-    val bestStreak: Int
+
+    // New Metrics
+    val todayFocusMinutes: Int,
+    val totalFocusMinutes: Int,
+    val todayTasksCompleted: Int,
+    val totalTasksCompleted: Int
 )
 
 data class ChartDataPoint(
@@ -38,19 +41,25 @@ class StatsViewModel @Inject constructor(
 
     // User Stats
     val userStats = combine(
-        repository.getTotalFocusMinutes(),
-        repository.getCompletedTaskCount(),
-        repository.getFocusSessions(0, Long.MAX_VALUE)
-    ) { totalMins, taskCount, sessions ->
-        val stats = calculateStats(totalMins ?: 0, taskCount, sessions)
+        repository.getFocusSessions(0, Long.MAX_VALUE),
+        repository.getAllTodos() // Using all todos to filter for 'today'
+    ) { sessions, todos ->
+        val stats = calculateStats(sessions, todos)
+
+        // Check for level up
         if (previousLevel != null && stats.level > previousLevel!!) {
             _showCelebration.value = true
         }
         previousLevel = stats.level
-        stats
-    }.stateIn(viewModelScope, SharingStarted.Lazily, calculateStats(0, 0, emptyList()))
 
-    // Weekly Data
+        stats
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.Lazily,
+        UserStats(1, "Novice", 0f, 10, 0, 0, 0, 0)
+    )
+
+    // Weekly Data (kept for the chart)
     val weeklyData = repository.getFocusSessions(0, Long.MAX_VALUE).map { sessions ->
         processWeeklyData(sessions)
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
@@ -65,7 +74,7 @@ class StatsViewModel @Inject constructor(
         processYearlyData(sessions)
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    // [NEW] Lifetime Data (Grouped by Year)
+    // Lifetime Data
     val lifetimeData = repository.getFocusSessions(0, Long.MAX_VALUE).map { sessions ->
         processLifetimeData(sessions)
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
@@ -74,99 +83,72 @@ class StatsViewModel @Inject constructor(
         _showCelebration.value = false
     }
 
-    // --- Data Processing Helpers ---
+    // --- Calculation Logic ---
 
-    private fun processLifetimeData(sessions: List<FocusSession>): List<ChartDataPoint> {
-        if (sessions.isEmpty()) return emptyList()
+    private fun calculateStats(sessions: List<FocusSession>, todos: List<TodoItem>): UserStats {
+        // 1. Focus Calculations
+        val totalMinutes = sessions.sumOf { it.durationMinutes }
+        val todayStart = getStartOfDay(Calendar.getInstance())
+        val todayEnd = getEndOfDay(Calendar.getInstance())
 
-        val calendar = Calendar.getInstance()
-        val currentYear = calendar.get(Calendar.YEAR)
+        val todayMinutes = sessions
+            .filter { it.timestamp in todayStart..todayEnd }
+            .sumOf { it.durationMinutes }
 
-        // Find the year of the very first session
-        val minTimestamp = sessions.minOf { it.timestamp }
-        calendar.timeInMillis = minTimestamp
-        val startYear = calendar.get(Calendar.YEAR)
+        // 2. Task Calculations
+        val completedTasks = todos.filter { it.isCompleted }
+        val totalTasksCount = completedTasks.size
 
-        val years = mutableListOf<ChartDataPoint>()
-
-        for (year in startYear..currentYear) {
-            val start = getStartOfYear(year)
-            val end = getEndOfYear(year)
-
-            val yearMinutes = sessions.filter { it.timestamp in start..end }
-                .sumOf { it.durationMinutes }
-
-            years.add(ChartDataPoint(year.toString(), yearMinutes, year == currentYear))
+        val todayTasksCount = completedTasks.count {
+            // Check completedAt if available, otherwise fallback to updatedAt logic if we had it.
+            // Since we just added completedAt, older tasks might be null.
+            // We count them if completedAt is today.
+            it.completedAt != null && it.completedAt >= todayStart && it.completedAt <= todayEnd
         }
-        // Ensure at least one bar if empty
-        if (years.isEmpty()) {
-            years.add(ChartDataPoint(currentYear.toString(), 0, true))
-        }
-        return years
-    }
 
-    private fun getStartOfYear(year: Int): Long {
-        val c = Calendar.getInstance()
-        c.set(Calendar.YEAR, year); c.set(Calendar.DAY_OF_YEAR, 1)
-        c.set(Calendar.HOUR_OF_DAY, 0); c.set(Calendar.MINUTE, 0); c.set(Calendar.SECOND, 0); c.set(Calendar.MILLISECOND, 0)
-        return c.timeInMillis
-    }
-
-    private fun getEndOfYear(year: Int): Long {
-        val c = Calendar.getInstance()
-        c.set(Calendar.YEAR, year); c.set(Calendar.MONTH, Calendar.DECEMBER); c.set(Calendar.DAY_OF_MONTH, 31)
-        c.set(Calendar.HOUR_OF_DAY, 23); c.set(Calendar.MINUTE, 59); c.set(Calendar.SECOND, 59); c.set(Calendar.MILLISECOND, 999)
-        return c.timeInMillis
-    }
-
-    // ... [Keep calculateStats, calculateStreaks, processWeeklyData, processMonthlyData, processYearlyData, getDayName, getMonthName, getStartOfDay, getEndOfDay exactly as they were] ...
-
-    // (Adding these helpers back for completeness of the snippet)
-    private fun calculateStats(totalMinutes: Int, tasksCompleted: Int, sessions: List<FocusSession>): UserStats {
+        // 3. Level Calculations
         val minutesPerLevel = 600
         val currentLevel = (totalMinutes / minutesPerLevel) + 1
         val minutesInCurrentLevel = totalMinutes % minutesPerLevel
         val progress = minutesInCurrentLevel / minutesPerLevel.toFloat()
-        val totalHours = totalMinutes / 60f
         val hoursForNextLevel = 10 - (minutesInCurrentLevel / 60)
 
         val title = when (currentLevel) {
             in 1..10 -> "Novice"; in 11..50 -> "Apprentice"; in 51..100 -> "Adept"
             in 101..300 -> "Expert"; in 301..600 -> "Master"; in 601..999 -> "Grandmaster"; else -> "Legend"
         }
-        val (currentStreak, bestStreak) = calculateStreaks(sessions)
-        return UserStats(currentLevel, title, progress, totalHours, hoursForNextLevel, tasksCompleted, currentStreak, bestStreak)
+
+        return UserStats(
+            level = currentLevel,
+            title = title,
+            progress = progress,
+            nextLevelHours = hoursForNextLevel,
+            todayFocusMinutes = todayMinutes,
+            totalFocusMinutes = totalMinutes,
+            todayTasksCompleted = todayTasksCount,
+            totalTasksCompleted = totalTasksCount
+        )
     }
 
-    private fun calculateStreaks(sessions: List<FocusSession>): Pair<Int, Int> {
-        if (sessions.isEmpty()) return Pair(0, 0)
-        val sortedSessions = sessions.sortedBy { it.timestamp }
+    // --- Chart Helpers (Unchanged) ---
+
+    private fun processLifetimeData(sessions: List<FocusSession>): List<ChartDataPoint> {
+        if (sessions.isEmpty()) return emptyList()
         val calendar = Calendar.getInstance()
-        val daysWithActivity = sortedSessions.map { session ->
-            calendar.timeInMillis = session.timestamp
-            calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0)
-            calendar.timeInMillis
-        }.distinct().sorted()
+        val currentYear = calendar.get(Calendar.YEAR)
+        val minTimestamp = sessions.minOf { it.timestamp }
+        calendar.timeInMillis = minTimestamp
+        val startYear = calendar.get(Calendar.YEAR)
+        val years = mutableListOf<ChartDataPoint>()
 
-        var currentStreak = 0
-        calendar.timeInMillis = System.currentTimeMillis()
-        calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0)
-        var checkDate = calendar.timeInMillis
-        while (daysWithActivity.contains(checkDate)) {
-            currentStreak++
-            calendar.add(Calendar.DAY_OF_YEAR, -1)
-            checkDate = calendar.timeInMillis
+        for (year in startYear..currentYear) {
+            val start = getStartOfYear(year)
+            val end = getEndOfYear(year)
+            val yearMinutes = sessions.filter { it.timestamp in start..end }.sumOf { it.durationMinutes }
+            years.add(ChartDataPoint(year.toString(), yearMinutes, year == currentYear))
         }
-
-        var bestStreak = 0
-        var tempStreak = 1
-        for (i in 1 until daysWithActivity.size) {
-            if ((daysWithActivity[i] - daysWithActivity[i - 1]) / (1000 * 60 * 60 * 24) == 1L) {
-                tempStreak++; bestStreak = maxOf(bestStreak, tempStreak)
-            } else { tempStreak = 1 }
-        }
-        bestStreak = maxOf(bestStreak, tempStreak)
-        return Pair(currentStreak, bestStreak)
+        if (years.isEmpty()) years.add(ChartDataPoint(currentYear.toString(), 0, true))
+        return years
     }
 
     private fun processWeeklyData(sessions: List<FocusSession>): List<ChartDataPoint> {
@@ -206,6 +188,18 @@ class StatsViewModel @Inject constructor(
         return months
     }
 
+    private fun getStartOfYear(year: Int): Long {
+        val c = Calendar.getInstance()
+        c.set(Calendar.YEAR, year); c.set(Calendar.DAY_OF_YEAR, 1)
+        c.set(Calendar.HOUR_OF_DAY, 0); c.set(Calendar.MINUTE, 0); c.set(Calendar.SECOND, 0); c.set(Calendar.MILLISECOND, 0)
+        return c.timeInMillis
+    }
+    private fun getEndOfYear(year: Int): Long {
+        val c = Calendar.getInstance()
+        c.set(Calendar.YEAR, year); c.set(Calendar.MONTH, Calendar.DECEMBER); c.set(Calendar.DAY_OF_MONTH, 31)
+        c.set(Calendar.HOUR_OF_DAY, 23); c.set(Calendar.MINUTE, 59); c.set(Calendar.SECOND, 59); c.set(Calendar.MILLISECOND, 999)
+        return c.timeInMillis
+    }
     private fun getDayName(day: Int) = when(day) { Calendar.MONDAY->"M"; Calendar.TUESDAY->"T"; Calendar.WEDNESDAY->"W"; Calendar.THURSDAY->"T"; Calendar.FRIDAY->"F"; Calendar.SATURDAY->"S"; Calendar.SUNDAY->"S"; else->"" }
     private fun getMonthName(month: Int) = when(month) { Calendar.JANUARY->"Jan"; Calendar.FEBRUARY->"Feb"; Calendar.MARCH->"Mar"; Calendar.APRIL->"Apr"; Calendar.MAY->"May"; Calendar.JUNE->"Jun"; Calendar.JULY->"Jul"; Calendar.AUGUST->"Aug"; Calendar.SEPTEMBER->"Sep"; Calendar.OCTOBER->"Oct"; Calendar.NOVEMBER->"Nov"; Calendar.DECEMBER->"Dec"; else->"" }
     private fun getStartOfDay(cal: Calendar): Long { val c = cal.clone() as Calendar; c.set(Calendar.HOUR_OF_DAY, 0); c.set(Calendar.MINUTE, 0); c.set(Calendar.SECOND, 0); c.set(Calendar.MILLISECOND, 0); return c.timeInMillis }

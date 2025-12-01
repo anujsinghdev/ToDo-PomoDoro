@@ -29,11 +29,16 @@ object AppModule {
             TodoDatabase::class.java,
             "anuj_todo_db"
         )
-            .fallbackToDestructiveMigration() // <--- ADD THIS LINE
+            // This is the CRITICAL line. It tells Room to use your custom logic
+            // instead of deleting the database when upgrading from 6 to 7.
+            .addMigrations(TodoDatabase.MIGRATION_6_7)
+
+            // Keeps fallback active for other unknown versions, but MIGRATION_6_7
+            // will take precedence for this specific update.
+            .fallbackToDestructiveMigration()
             .build()
     }
 
-    // ... keep the rest of your code the same ...
     @Provides
     @Singleton
     fun provideTodoRepository(db: TodoDatabase): TodoRepository {
