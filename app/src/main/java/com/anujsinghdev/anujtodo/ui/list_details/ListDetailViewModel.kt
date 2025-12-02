@@ -2,6 +2,7 @@ package com.anujsinghdev.anujtodo.ui.list_detail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.anujsinghdev.anujtodo.data.local.UserPreferencesRepository
 import com.anujsinghdev.anujtodo.domain.model.RepeatMode
 import com.anujsinghdev.anujtodo.domain.model.TodoItem
 import com.anujsinghdev.anujtodo.domain.model.TodoList
@@ -19,21 +20,33 @@ enum class SortOption {
 
 @HiltViewModel
 class ListDetailViewModel @Inject constructor(
-    private val repository: TodoRepository
+    private val repository: TodoRepository,
+    private val userPrefs: UserPreferencesRepository // 1. Inject Preferences
 ) : ViewModel() {
 
-    private val _currentSortOption = MutableStateFlow(SortOption.CREATION_DATE)
-    val currentSortOption = _currentSortOption.asStateFlow()
+    // 2. Replace MutableStateFlow with StateFlow from DataStore
+    val currentSortOption = userPrefs.sortOption
+        .map { savedOption ->
+            try {
+                SortOption.valueOf(savedOption)
+            } catch (e: Exception) {
+                SortOption.CREATION_DATE
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = SortOption.CREATION_DATE
+        )
 
     // --- FIX: Observe List Name from DB ---
-    // This ensures when you rename, the top bar updates immediately.
     fun getListNameFlow(listId: Long, defaultName: String): Flow<String> {
         return if (listId == SMART_LIST_COMPLETED_ID) {
             flowOf(defaultName)
         } else {
             repository.getListById(listId)
                 .map { it.name }
-                .catch { emit(defaultName) } // Fallback if deleted/error
+                .catch { emit(defaultName) }
         }
     }
 
@@ -47,7 +60,7 @@ class ListDetailViewModel @Inject constructor(
     }
 
     fun getTasksForList(listId: Long): Flow<List<TodoItem>> {
-        return combine(repository.getAllTodos(), _currentSortOption) { allTodos, sortOption ->
+        return combine(repository.getAllTodos(), currentSortOption) { allTodos, sortOption ->
             val filtered = if (listId == SMART_LIST_COMPLETED_ID) {
                 allTodos.filter { it.isCompleted }
             } else {
@@ -56,7 +69,13 @@ class ListDetailViewModel @Inject constructor(
 
             when (sortOption) {
                 SortOption.IMPORTANCE -> filtered.sortedWith(compareByDescending<TodoItem> { it.isFlagged }.thenByDescending { it.createdAt })
-                SortOption.DUE_DATE -> filtered.sortedWith(compareBy<TodoItem> { it.dueDate ?: Long.MAX_VALUE }.thenBy { it.createdAt })
+
+                // Sorted by Due Date Ascending (Earliest Date First: 1 Dec, 2 Dec...)
+                SortOption.DUE_DATE -> filtered.sortedWith(
+                    compareBy<TodoItem> { it.dueDate ?: Long.MAX_VALUE }
+                        .thenByDescending { it.createdAt }
+                )
+
                 SortOption.ALPHABETICAL -> filtered.sortedBy { it.title.lowercase() }
                 SortOption.CREATION_DATE -> filtered.sortedByDescending { it.createdAt }
             }
@@ -73,16 +92,14 @@ class ListDetailViewModel @Inject constructor(
 
     fun duplicateList(listId: Long, originalName: String) {
         viewModelScope.launch {
-            // 1. Create New List and get its ID
             val newListName = "$originalName (Copy)"
             val newListId = repository.insertList(TodoList(name = newListName))
 
-            // 2. Copy tasks to the new list
             val originalTasks = repository.getAllTodos().first().filter { it.listId == listId }
             originalTasks.forEach { task ->
                 repository.insertTodo(
                     task.copy(
-                        id = 0, // Reset ID for new entry
+                        id = 0,
                         listId = newListId,
                         createdAt = System.currentTimeMillis()
                     )
@@ -93,14 +110,9 @@ class ListDetailViewModel @Inject constructor(
 
     fun deleteList(listId: Long, onDeletionFinished: () -> Unit) {
         viewModelScope.launch {
-            // 1. Delete tasks inside
             val tasks = repository.getAllTodos().first().filter { it.listId == listId }
             tasks.forEach { repository.deleteTodo(it) }
-
-            // 2. Delete the list itself
             repository.deleteListById(listId)
-
-            // 3. Navigate back
             onDeletionFinished()
         }
     }
@@ -115,17 +127,21 @@ class ListDetailViewModel @Inject constructor(
     fun toggleTask(todo: TodoItem) = viewModelScope.launch { repository.updateTodo(todo.copy(isCompleted = !todo.isCompleted)) }
     fun toggleFlag(todo: TodoItem) = viewModelScope.launch { repository.updateTodo(todo.copy(isFlagged = !todo.isFlagged)) }
     fun updateTask(todo: TodoItem) = viewModelScope.launch { repository.updateTodo(todo) }
-    fun updateSortOption(option: SortOption) { _currentSortOption.value = option }
+
+    // 3. Update this function to save to DataStore
+    fun updateSortOption(option: SortOption) {
+        viewModelScope.launch {
+            userPrefs.saveSortOption(option.name)
+        }
+    }
 
     fun archiveList(listId: Long) {
         viewModelScope.launch {
-            // Fetch the current list first to keep other properties intact
             val currentList = repository.getListById(listId).first()
             repository.updateList(currentList.copy(isArchived = true))
         }
     }
 
-    // In ListDetailViewModel class
     fun deleteTask(todo: TodoItem) {
         viewModelScope.launch {
             repository.deleteTodo(todo)

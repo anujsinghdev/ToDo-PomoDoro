@@ -1,13 +1,31 @@
 package com.anujsinghdev.anujtodo.ui.stats
 
+import android.content.ContentValues
+import android.content.Context
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.anujsinghdev.anujtodo.data.local.UserPreferencesRepository
+import com.anujsinghdev.anujtodo.domain.model.BackupData
 import com.anujsinghdev.anujtodo.domain.model.FocusSession
 import com.anujsinghdev.anujtodo.domain.model.TodoItem
 import com.anujsinghdev.anujtodo.domain.repository.TodoRepository
+import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.OutputStreamWriter
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 
 data class UserStats(
@@ -31,7 +49,9 @@ data class ChartDataPoint(
 
 @HiltViewModel
 class StatsViewModel @Inject constructor(
-    private val repository: TodoRepository
+    private val repository: TodoRepository,
+    private val userPrefs: UserPreferencesRepository, // Inject UserPrefs
+    @ApplicationContext private val context: Context  // Inject Context for file ops
 ) : ViewModel() {
 
     private val _showCelebration = MutableStateFlow(false)
@@ -81,6 +101,107 @@ class StatsViewModel @Inject constructor(
 
     fun onCelebrationShown() {
         _showCelebration.value = false
+    }
+
+    // --- IMPORT / EXPORT LOGIC ---
+
+    fun exportData() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // 1. Gather all data
+                // Note: repository calls must return lists directly via .first()
+                val backup = BackupData(
+                    userName = userPrefs.userName.first(),
+                    userEmail = userPrefs.userEmail.first(),
+                    folders = repository.getAllFolders().first(),
+                    lists = repository.getAllLists().first() + repository.getArchivedLists().first(),
+                    todos = repository.getAllTodos().first(),
+                    focusSessions = repository.getFocusSessions(0, Long.MAX_VALUE).first()
+                )
+
+                // 2. Convert to JSON
+                val gson = Gson()
+                val jsonString = gson.toJson(backup)
+
+                // 3. Save to Downloads using MediaStore
+                val fileName = "AnujTodo_Backup_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.json"
+
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "application/json")
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                    }
+                }
+
+                val resolver = context.contentResolver
+                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+
+                uri?.let {
+                    resolver.openOutputStream(it)?.use { outputStream ->
+                        OutputStreamWriter(outputStream).use { writer ->
+                            writer.write(jsonString)
+                        }
+                    }
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Backup saved to Downloads!", Toast.LENGTH_LONG).show()
+                    }
+                } ?: run {
+                    throw Exception("Could not create file in Downloads")
+                }
+
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Export Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun importData(uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // 1. Read File
+                val jsonString = context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    inputStream.reader().readText()
+                } ?: throw Exception("Could not read file")
+
+                // 2. Parse JSON
+                val gson = Gson()
+                val backup = gson.fromJson(jsonString, BackupData::class.java)
+
+                // 3. Restore Data (Clear DB first to prevent duplicates/conflicts)
+                // Ensure you have added clearAllData() to your Repository as per Step 4
+                repository.clearAllData()
+
+                // 4. Insert User Prefs
+                if (backup.userName != null) {
+                    // Reusing the existing saveUser method
+                    userPrefs.saveUser(backup.userName, backup.userEmail ?: "", "")
+                }
+
+                // 5. Insert DB Data
+                backup.folders.forEach { repository.insertFolder(it) }
+                // Insert lists. Note: If your DAO insert method auto-generates IDs and ignores the input ID,
+                // you might lose specific ID linkages (folders <-> lists).
+                // Ideally, use @Insert(onConflict = OnConflictStrategy.REPLACE) in DAO which respects provided IDs.
+                backup.lists.forEach { repository.insertList(it) }
+                backup.todos.forEach { repository.insertTodo(it) }
+                backup.focusSessions.forEach { repository.saveFocusSession(it) }
+
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Data imported successfully!", Toast.LENGTH_LONG).show()
+                    // Optional: Navigate to Home or recreate activity to refresh UI thoroughly
+                }
+
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Import Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+                e.printStackTrace()
+            }
+        }
     }
 
     // --- Calculation Logic ---

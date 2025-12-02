@@ -32,4 +32,6 @@ interface TodoRepository {
     fun getTotalFocusMinutes(): Flow<Int>
 
     fun getCompletedTaskCount(): Flow<Int> // <--- Add this
+
+    suspend fun clearAllData() // Add this single method to wipe DB
 }

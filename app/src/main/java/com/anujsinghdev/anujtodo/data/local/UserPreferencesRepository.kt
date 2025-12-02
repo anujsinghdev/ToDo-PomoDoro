@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.anujsinghdev.anujtodo.ui.list_detail.SortOption
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -30,6 +31,9 @@ class UserPreferencesRepository @Inject constructor(
 
     // --- CUSTOM DURATIONS KEY ---
     private val KEY_CUSTOM_DURATIONS = stringSetPreferencesKey("custom_durations")
+
+    // --- SORT OPTION KEY ---
+    private val KEY_SORT_OPTION = stringPreferencesKey("sort_option")
 
     // User Info
     suspend fun saveUser(name: String, email: String, password: String) {
@@ -95,6 +99,18 @@ class UserPreferencesRepository @Inject constructor(
         context.dataStore.edit { preferences ->
             val currentSet = preferences[KEY_CUSTOM_DURATIONS] ?: emptySet()
             preferences[KEY_CUSTOM_DURATIONS] = currentSet - minutes.toString()
+        }
+    }
+
+    // --- SORT OPTION FUNCTIONS ---
+    val sortOption: Flow<String> = context.dataStore.data.map { preferences ->
+        // Default to CREATION_DATE if not set
+        preferences[KEY_SORT_OPTION] ?: SortOption.CREATION_DATE.name
+    }
+
+    suspend fun saveSortOption(option: String) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_SORT_OPTION] = option
         }
     }
 }

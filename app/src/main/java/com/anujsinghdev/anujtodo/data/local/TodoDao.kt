@@ -86,4 +86,17 @@ interface TodoDao {
     // Get count of completed tasks for stats
     @Query("SELECT COUNT(*) FROM todo_items WHERE isCompleted = 1")
     fun getCompletedTaskCount(): Flow<Int>
+
+    // --- For Import/Restore (Clear Data) ---
+    @Query("DELETE FROM todo_items")
+    suspend fun deleteAllTodos()
+
+    @Query("DELETE FROM todo_folders")
+    suspend fun deleteAllFolders()
+
+    @Query("DELETE FROM todo_lists")
+    suspend fun deleteAllLists()
+
+    @Query("DELETE FROM focus_sessions")
+    suspend fun deleteAllFocusSessions()
 }

@@ -58,4 +58,11 @@ class TodoRepositoryImpl(
     }
 
     override fun getCompletedTaskCount(): Flow<Int> = dao.getCompletedTaskCount()
+
+    override suspend fun clearAllData() {
+        dao.deleteAllTodos()
+        dao.deleteAllLists()
+        dao.deleteAllFolders()
+        dao.deleteAllFocusSessions()
+    }
 }

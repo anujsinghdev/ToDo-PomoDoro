@@ -1,5 +1,7 @@
 package com.anujsinghdev.anujtodo.ui.stats
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -11,9 +13,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.CenterFocusStrong
 import androidx.compose.material.icons.outlined.Home
@@ -65,6 +69,13 @@ fun StatsScreen(
 
     var selectedPeriod by remember { mutableStateOf(TimePeriod.WEEKLY) }
     val showConfetti by viewModel.showCelebration.collectAsState()
+
+    // --- 1. File Picker Launcher for Import ---
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { viewModel.importData(it) }
+    }
 
     LaunchedEffect(showConfetti) {
         if (showConfetti) {
@@ -190,6 +201,47 @@ fun StatsScreen(
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // --- 2. Data Management Section ---
+                Text("Data Management", color = TextWhite, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Export Button
+                    Button(
+                        onClick = { viewModel.exportData() },
+                        colors = ButtonDefaults.buttonColors(containerColor = CardDark),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f).height(56.dp)
+                    ) {
+                        Icon(Icons.Default.Upload, null, tint = NeonBlue)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Export Data", color = TextWhite)
+                    }
+
+                    // Import Button
+                    Button(
+                        onClick = {
+                            // Launch file picker for JSON files
+                            importLauncher.launch(arrayOf("application/json"))
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = CardDark),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f).height(56.dp)
+                    ) {
+                        Icon(Icons.Default.Download, null, tint = NeonPurple)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Import Data", color = TextWhite)
+                    }
+                }
+
+                // Add bottom padding so it doesn't get cut off by bottom bar scroll
+                Spacer(modifier = Modifier.height(100.dp))
             }
 
             if (showConfetti) {
